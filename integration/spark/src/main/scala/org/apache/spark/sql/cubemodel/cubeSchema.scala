@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.execution.{RunnableCommand, SparkPlan}
 import org.apache.spark.sql.hive.{HiveContext, CarbonMetastoreCatalog}
 import org.apache.spark.sql.types.TimestampType
-import org.apache.spark.sql.{CarbonEnv, DataFrame, CarbonContext, CarbonRelation, Row, SQLContext, getDB}
+import org.apache.spark.sql._
 import org.carbondata.common.logging.LogServiceFactory
 import org.carbondata.core.constants.CarbonCommonConstants
 import org.carbondata.core.datastorage.store.impl.FileFactory
@@ -1624,6 +1624,7 @@ private[sql] case class LoadCube(
             fileHeader,
             escapeChar, booleanValForMultiLine)(sqlContext.asInstanceOf[HiveContext])
         }
+        new GlobalDictionaryGenerator().generateGlobalSurrogates(sqlContext, carbonLoadModel, storeLocation)
         CarbonDataRDDFactory.loadCarbonData(sqlContext, carbonLoadModel, storeLocation, relation.cubeMeta.dataPath, kettleHomePath,
           relation.cubeMeta.partitioner, columinar, false, partitionStatus);
         try {
@@ -1805,11 +1806,11 @@ private[sql] case class LoadAggregationTable(
 }*/
 
 //private[sql] case class ShowSchemas(
-//    schemaLike: Option[String], 
+//    schemaLike: Option[String],
 //    override val output: Seq[Attribute]
 //    )(@transient context: CarbonContext) extends RunnableCommand {
 //
-//  override def run(sqlContext: SQLContext): Seq[Row] ={ 
+//  override def run(sqlContext: SQLContext): Seq[Row] ={
 //    import sqlContext.implicits._
 //    val res = (context.catalog.s.getAllDatabases(schemaLike) ++
 //      CarbonEnv.carbonCatalog.showSchemas(schemaLike)).toSet[String].toSeq//.map(Row(_))
@@ -1841,7 +1842,7 @@ private[sql] case class ShowAllCubesInSchema(
   }
 }
 
-private[sql] case class ShowAllCubes( override val output: Seq[Attribute]) 
+private[sql] case class ShowAllCubes( override val output: Seq[Attribute])
                   extends RunnableCommand {
 
   override def run(sqlContext: SQLContext): Seq[Row] = {

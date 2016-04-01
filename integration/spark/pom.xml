@@ -108,6 +108,11 @@
             <scope>${spark.deps.scope}</scope>
         </dependency>
         <dependency>
+            <groupId>com.databricks</groupId>
+            <artifactId>spark-csv_${scala.binary.version}</artifactId>
+            <version>1.4.0</version>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.11</version>

@@ -19,6 +19,7 @@
 
 package org.apache.spark.sql
 
+import java.io.File
 import java.sql.{DriverManager, ResultSet}
 
 import org.apache.spark.SparkContext
@@ -43,12 +44,18 @@ import org.carbondata.query.querystats.{QueryDetail, QueryStatsCollector}
 
 import scala.language.implicitConversions
 
-class CarbonContext(val sc: SparkContext, metadataPath: String) extends HiveContext(sc) {
+class CarbonContext(sc: SparkContext, metadataPath: String) extends HiveContext(sc) {
   self =>
+
+  def this(sc: SparkContext) {
+    this(sc, new File("./").getAbsolutePath)
+  }
 
   var lastSchemaUpdatedTime = System.currentTimeMillis()
 
-  override lazy val catalog = new CarbonMetastoreCatalog(this, metadataPath, metadataHive) with OverrideCatalog
+  @transient
+  override lazy val catalog =
+    new CarbonMetastoreCatalog(self, metadataPath, metadataHive) with OverrideCatalog
 
   @transient
   override protected[sql] lazy val analyzer =
