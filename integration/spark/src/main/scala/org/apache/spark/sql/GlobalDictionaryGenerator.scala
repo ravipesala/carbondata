@@ -19,10 +19,14 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.{HashPartitioner, Partitioner};
+import org.apache.spark.{HashPartitioner, Partitioner}
 import org.carbondata.core.carbon.CarbonDef.Dimension
+import org.carbondata.core.carbon.CarbonTypeIdentifier
+import org.carbondata.core.util.CarbonDictionaryUtil
+import org.carbondata.core.writer.CarbonDictionaryWriter
 import org.carbondata.integration.spark.load.CarbonLoadModel
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -32,22 +36,22 @@ class GlobalDictionaryGenerator extends Serializable {
 
 
   def generateGlobalSurrogates(sqlContext: SQLContext,
-                               carbonLoadModel:CarbonLoadModel,
+                               carbonLoadModel: CarbonLoadModel,
                                storeLocation: String) {
 
 
     val columns = new mutable.ArrayBuffer[String]
-    carbonLoadModel.getSchema.cubes(0).dimensions.foreach{dim =>
-      dim.asInstanceOf[Dimension].hierarchies(0).levels.map{level =>
+    carbonLoadModel.getSchema.cubes(0).dimensions.foreach { dim =>
+      dim.asInstanceOf[Dimension].hierarchies(0).levels.map { level =>
         columns += level.column
       }
     }
     //TODO : Read the dimension files to generate dictionary.
     //Read the data using Spark-csv datasource.
     val df = sqlContext.read.format("com.databricks.spark.csv").
-    option("header", carbonLoadModel.getCsvHeader.isEmpty.toString).
-    option("delimiter", carbonLoadModel.getCsvDelimiter).
-    load(carbonLoadModel.getFactFilePath).select(columns.toSeq.map(new Column(_)) : _*)
+      option("header", carbonLoadModel.getCsvHeader.isEmpty.toString).
+      option("delimiter", carbonLoadModel.getCsvDelimiter).
+      load(carbonLoadModel.getFactFilePath).select(columns.toSeq.map(new Column(_)): _*)
 
     //Just a dummy
     val value = new GlobalSurrogateValue
@@ -58,19 +62,53 @@ class GlobalDictionaryGenerator extends Serializable {
         (new GlobalSurrogateKey(r._1.toString, r._2), value)
       }
     }.flatMap(a => a).
+    //Reduce the keys on mapside to reduce shuffling overhead.
+    combineByKey(
+      (gv) => (gv),
+      (acc: (GlobalSurrogateValue), v)=>(v),
+      (acc1: (GlobalSurrogateValue), acc2: (GlobalSurrogateValue)) => (acc1)
+    ).
 
     // Partition by using column number so that each column data go to one individual partition.
     partitionBy(new CarbonPartitioner(columns.length)).mapPartitions { iter =>
       val set = new mutable.HashSet[String]
+      var part = 0;
       while (iter.hasNext) {
-        set.add(iter.next()._1.key)
+        val gKey = iter.next()._1
+        set.add(gKey.key)
+        part = gKey.partition
       }
       //TODO : Sort the data and do merge sort to filter out the existing dictionsry names.
       //We can write the data to disk for individual partition.Before writing we can merge the already
       //existed surrogates and generate for new data.
+
+      writeDictionaryFile(carbonLoadModel.getSchemaName, carbonLoadModel.getCubeName,
+        columns.lift(part).get, storeLocation, false,set.toSeq.sorted.iterator)
       set.toSeq.sorted.iterator
     }.collect.foreach(println)
   }
+
+  def writeDictionaryFile(databaseName: String,
+                          tableName: String,
+                          columnName: String,
+                          storePath: String,
+                          isSharedDimension: Boolean,
+                          columnValues: Iterator[String]): Unit = {
+    val identifier = new CarbonTypeIdentifier(databaseName, tableName)
+    val directoryPath: String =
+      CarbonDictionaryUtil.getDirectoryPath(identifier, storePath, isSharedDimension)
+    val metadataFilePath: String =
+      CarbonDictionaryUtil.
+        getDictionaryMetadataFilePath(identifier, directoryPath, columnName, isSharedDimension)
+    val dictionaryFilePath: String =
+      CarbonDictionaryUtil.
+        getDictionaryFilePath(identifier, directoryPath, columnName, isSharedDimension)
+    val writer: CarbonDictionaryWriter =
+      new CarbonDictionaryWriter(identifier, columnValues.asJava,
+        columnName, "segment_0", storePath, isSharedDimension)
+    writer.processColumnUniqueValueList
+  }
+
 
 }
 
@@ -85,8 +123,9 @@ class GlobalSurrogateKey(val key: String, val partition: Int)
     if (that != null) {
       val other = that.asInstanceOf[GlobalSurrogateKey]
       key.equals(other.key) && partition == other.partition
+    } else {
+      false
     }
-    false
   }
 
   override def hashCode() = {
