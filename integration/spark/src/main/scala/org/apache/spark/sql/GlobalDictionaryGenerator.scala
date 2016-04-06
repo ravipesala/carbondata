@@ -21,12 +21,8 @@ package org.apache.spark.sql
 
 import org.apache.spark.{HashPartitioner, Partitioner}
 import org.carbondata.core.carbon.CarbonDef.Dimension
-import org.carbondata.core.carbon.CarbonTypeIdentifier
-import org.carbondata.core.util.CarbonDictionaryUtil
-import org.carbondata.core.writer.CarbonDictionaryWriter
 import org.carbondata.integration.spark.load.CarbonLoadModel
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -94,19 +90,19 @@ class GlobalDictionaryGenerator extends Serializable {
                           storePath: String,
                           isSharedDimension: Boolean,
                           columnValues: Iterator[String]): Unit = {
-    val identifier = new CarbonTypeIdentifier(databaseName, tableName)
-    val directoryPath: String =
-      CarbonDictionaryUtil.getDirectoryPath(identifier, storePath, isSharedDimension)
-    val metadataFilePath: String =
-      CarbonDictionaryUtil.
-        getDictionaryMetadataFilePath(identifier, directoryPath, columnName, isSharedDimension)
-    val dictionaryFilePath: String =
-      CarbonDictionaryUtil.
-        getDictionaryFilePath(identifier, directoryPath, columnName, isSharedDimension)
-    val writer: CarbonDictionaryWriter =
-      new CarbonDictionaryWriter(identifier, columnValues.asJava,
-        columnName, "segment_0", storePath, isSharedDimension)
-    writer.processColumnUniqueValueList
+//    val identifier = new CarbonTypeIdentifier(databaseName, tableName)
+//    val directoryPath: String =
+//      CarbonDictionaryUtil.getDirectoryPath(identifier, storePath, isSharedDimension)
+//    val metadataFilePath: String =
+//      CarbonDictionaryUtil.
+//        getDictionaryMetadataFilePath(identifier, directoryPath, columnName, isSharedDimension)
+//    val dictionaryFilePath: String =
+//      CarbonDictionaryUtil.
+//        getDictionaryFilePath(identifier, directoryPath, columnName, isSharedDimension)
+//    val writer: CarbonDictionaryWriter =
+//      new CarbonDictionaryWriter(identifier, columnValues.asJava,
+//        columnName, "segment_0", storePath, isSharedDimension)
+//    writer.processColumnUniqueValueList
   }
 
 
