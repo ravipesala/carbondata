@@ -45,6 +45,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.carbondata</groupId>
+            <artifactId>carbon-format</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>unibi</groupId>
             <artifactId>com.kettlecore</artifactId>
             <version>4.2.1-GA</version>
