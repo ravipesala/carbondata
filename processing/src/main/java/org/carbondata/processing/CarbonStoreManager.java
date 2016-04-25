@@ -1,5 +1,6 @@
 package org.carbondata.processing;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ import org.carbondata.core.datastorage.store.filesystem.CarbonFile;
 import org.carbondata.core.datastorage.store.impl.FileFactory;
 import org.carbondata.core.reader.ThriftReader;
 import org.carbondata.core.util.CarbonProperties;
+import org.carbondata.core.util.CarbonUtil;
 import org.carbondata.core.writer.ThriftWriter;
 import org.carbondata.format.SchemaEvolutionEntry;
 import org.carbondata.processing.util.CarbonDataProcessorLogEvent;
@@ -222,6 +224,109 @@ public class CarbonStoreManager {
     updateDbsUpdatedTime(tableInfo.getDatabaseName(), tableInfo.getFactTable().getTableName());
   }
 
+  /**
+   * Drops the table from store.
+   *
+   * @param dbName
+   * @param tableName
+   */
+  public void dropCube(String dbName, String tableName) {
+
+    CarbonTable carbonTable = CarbonMetadata.getInstance().getCarbonTable(dbName + "_" + tableName);
+
+    try {
+      if (null != carbonTable) {
+        String metadatFilePath = carbonTable.getMetaDataFilepath();
+        FileFactory.FileType fileType = FileFactory.getFileType(metadatFilePath);
+
+        if (FileFactory.isFileExist(metadatFilePath, fileType)) {
+          CarbonFile file = FileFactory.getCarbonFile(metadatFilePath, fileType);
+          // TODO: Use FileFilter to get and delete the files instead of using partionCount
+          CarbonUtil.renameCubeForDeletion(100, storePath, dbName, tableName);
+          CarbonUtil.deleteFoldersAndFilesSilent(file.getParentFile());
+        }
+
+        String partitionLocation = storePath + File.separator + "partition" + File.separator +
+            dbName + File.separator + tableName;
+        FileFactory.FileType partitionFileType = FileFactory.getFileType(partitionLocation);
+        if (FileFactory.isFileExist(partitionLocation, partitionFileType)) {
+          CarbonUtil.deleteFoldersAndFiles(
+              FileFactory.getCarbonFile(partitionLocation, partitionFileType));
+        }
+      }
+    } catch (Exception ex) {
+      // TODO: Throw specific exception like CarbonStorageExcepton.
+      LOGGER.info(CarbonDataProcessorLogEvent.UNIBI_CARBONDATAPROCESSOR_MSG,
+          "Error while dropping Table " + tableName + " of " + dbName);
+    }
+
+    // TODO: Override equals method in CarbonTable
+    carbonTables.remove(carbonTable);
+    LOGGER.info(CarbonDataProcessorLogEvent.UNIBI_CARBONDATAPROCESSOR_MSG,
+        "Table " + tableName + " of " + dbName + " dropped successfully.");
+
+  }
+
+  public void alterTable(TableInfo tableInfo) {
+    // TODO: Add restructure of table logic here.
+  }
+
+  /**
+   * Returns all tables from the store.
+   *
+   * @return
+   * @throws IOException
+   */
+  public List<CarbonTable> getAllTables() throws IOException {
+    return getAllTables(null);
+  }
+
+  /**
+   * Returns all tables located in the dbName of the store
+   *
+   * @param dbName
+   * @return
+   * @throws IOException
+   */
+  public List<CarbonTable> getAllTables(String dbName) throws IOException {
+    checkDbsModifiedTimeAndReloadTables();
+    List<CarbonTable> carbonTablesFiltered = new ArrayList<CarbonTable>();
+    if (dbName != null) {
+      for (CarbonTable carbonTable : carbonTables) {
+        if (carbonTable.getDatabaseName().equals(dbName)) {
+          // TODO : add the copy of table.
+          carbonTablesFiltered.add(carbonTable);
+        }
+      }
+    } else {
+      carbonTablesFiltered.addAll(carbonTables);
+    }
+
+    return carbonTablesFiltered;
+  }
+
+  /**
+   * Check whether table exists or not in the table.
+   *
+   * @param dbName
+   * @param tableName
+   * @return
+   */
+  public boolean tableExists(String dbName, String tableName) {
+    try {
+      checkDbsModifiedTimeAndReloadTables();
+      for (CarbonTable carbonTable : carbonTables) {
+        if (carbonTable.getDatabaseName().equals(dbName) && carbonTable.getFactTableName()
+            .equals(tableName)) {
+          return true;
+        }
+      }
+    } catch (Exception e) {
+      LOGGER.error(CarbonDataProcessorLogEvent.UNIBI_CARBONDATAPROCESSOR_MSG, e);
+    }
+    return false;
+  }
+
   private String getTimestampFile(String dbName, String tableName) {
 
     StringBuilder timestampFile = new StringBuilder();
@@ -261,6 +366,41 @@ public class CarbonStoreManager {
     String timestampFile = getTimestampFile(dbName, tableName);
     FileFactory.getCarbonFile(timestampFile, FileFactory.getFileType(timestampFile))
         .setLastModifiedTime(System.currentTimeMillis());
+  }
+
+  private void checkDbsModifiedTimeAndReloadTables() throws IOException {
+    if (useUniquePath) {
+      for (CarbonTable carbonTable : carbonTables) {
+        String timestampFile =
+            getTimestampFile(carbonTable.getDatabaseName(), carbonTable.getFactTableName());
+        FileFactory.FileType timestampFileType = FileFactory.getFileType(timestampFile);
+        if (FileFactory.isFileExist(timestampFile, timestampFileType)) {
+          if (!(FileFactory.getCarbonFile(timestampFile, timestampFileType).getLastModifiedTime()
+              == cubeModifiedTimeStore.get(carbonTable.getDatabaseName() + "_" +
+              carbonTable.getFactTableName()))) {
+            refreshCache();
+            break;
+          }
+        }
+      }
+    } else {
+      String timestampFile = getTimestampFile("", "");
+      FileFactory.FileType timestampFileType = FileFactory.getFileType(timestampFile);
+      if (FileFactory.isFileExist(timestampFile, timestampFileType)) {
+        if (!(FileFactory.getCarbonFile(timestampFile, timestampFileType).getLastModifiedTime()
+            == cubeModifiedTimeStore.get("default"))) {
+          refreshCache();
+        }
+      }
+    }
+  }
+
+  /**
+   * refresh the tables cache
+   * @throws IOException
+   */
+  public void refreshCache() throws IOException {
+    carbonTables = loadStore(storePath);
   }
 
 }
