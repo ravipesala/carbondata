@@ -8,5 +8,5 @@ Apache Hive’s ORC format is a columnar storage format with basic indexing capa
 Apache Parquet is columnar storage can improve performance in comparison to ORC, because of more efficient storage organization. Though Parquet can provide query response on TB level data in a few seconds, it is still far from the sub-second expectation of interactive analysis users.
 Cloudera Kudu can effectively solve some query performance issues, but kudu is not hadoop native, can’t seamlessly integrate historic HDFS data into new kudu system.
 
-However, CarbonData uses specially engineered optimizations targeted to improve performance of analytical queries which can include filters, aggregation and distinct counts, the required data to be stored in an indexed, well organized, read-optimized format, CarbonData’s query performance can achieve sub-second .
+However, CarbonData uses specially engineered optimizations targeted to improve performance of analytical queries which can include filters, aggregation and distinct counts, the required data to be stored in an indexed, well organized, read-optimized format, CarbonData’s query performance can achieve sub-second response.
 
