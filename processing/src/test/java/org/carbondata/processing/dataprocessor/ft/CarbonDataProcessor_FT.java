@@ -90,7 +90,7 @@ public class CarbonDataProcessor_FT extends TestCase {
     TransMeta transMeta = null;
     try {
       transMeta = new TransMeta(graphFile);
-    } catch (Exception e) {
+    } catch (KettleXMLException e) {
       throw new RuntimeException(e);
     }
     transMeta.setFilename(graphFile);
@@ -117,7 +117,7 @@ public class CarbonDataProcessor_FT extends TestCase {
     transMeta = null;
     try {
       transMeta = new TransMeta(graphFile);
-    } catch (Exception e) {
+    } catch (KettleXMLException e) {
       throw new RuntimeException(e);
     }
     transMeta.setFilename(graphFile);
@@ -151,7 +151,7 @@ public class CarbonDataProcessor_FT extends TestCase {
     TransMeta transMeta = null;
     try {
       transMeta = new TransMeta(graphFile);
-    } catch (Exception e) {
+    } catch (KettleXMLException e) {
       throw new RuntimeException(e);
     }
     transMeta.setFilename(graphFile);
