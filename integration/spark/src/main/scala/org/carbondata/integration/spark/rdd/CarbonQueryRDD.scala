@@ -71,11 +71,6 @@ class CarbonSparkPartition(rddId: Int, val idx: Int,
   baseStoreLocation: String)
   extends RDD[(K, V)](sc, Nil) with Logging {
 
-  private val jobtrackerId: String = {
-    val formatter = new SimpleDateFormat("yyyyMMddHHmm")
-    formatter.format(new Date())
-  }
-
   override def getPartitions: Array[Partition] = {
     val carbonInputFormat = new CarbonInputFormat[RowResult]();
     val jobConf: JobConf = new JobConf(new Configuration)
@@ -138,6 +133,7 @@ class CarbonSparkPartition(rddId: Int, val idx: Int,
         }
         // execute query
         rowIterator = QueryExecutorFactory.getQueryExecutor(queryModel).execute(queryModel)
+                      .asInstanceOf[CarbonIterator[RowResult]]
         // TODO: CarbonQueryUtil.isQuickFilter quick filter from dictionary needs to support
       } catch {
         case e: Exception =>
