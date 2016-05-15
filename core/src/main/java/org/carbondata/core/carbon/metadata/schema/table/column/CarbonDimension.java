@@ -91,7 +91,7 @@ public class CarbonDimension extends CarbonColumn {
   }
 
   public boolean hasEncoding(Encoding encoding) {
-    return columnSchema.getEncodingList().contains(encoding);
+    return columnSchema.hasEncoding(encoding);
   }
 
   /**
